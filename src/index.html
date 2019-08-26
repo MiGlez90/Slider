@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
+  <title>Stencil Component Starter</title>
+
+  <script type="module" src="/build/carousel.esm.js"></script>
+  <script nomodule src="/build/carousel.js"></script>
+
+</head>
+<body>
+
+  <nova-slider></nova-slider>
+  <script>
+    (function () {
+      function init() {
+        var novaS = document.querySelector("nova-slider");
+        novaS.items = [
+          {title: "Test 1", image: "https://picsum.photos/200/300", summary: "This is a test ", link: "1"},
+          {title: "Test 2", image: "https://picsum.photos/200/300", summary: "This is a test ", link: "2"},
+          {title: "Test 3", image: "https://picsum.photos/200/300", summary: "This is a test ", link: "3"},
+          {title: "Test 4", image: "https://picsum.photos/200/300", summary: "This is a test ", link: "4"}
+        ]
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
