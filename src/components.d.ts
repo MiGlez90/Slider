@@ -48,9 +48,6 @@ export namespace Components {
     'items': SliderItem[];
     'lazyload': boolean;
     'loop': boolean;
-    /**
-    * prop text
-    */
     'mode': string;
     'mouseDrag': boolean;
     'nested': boolean | string;
@@ -129,9 +126,6 @@ declare namespace LocalJSX {
     'items'?: SliderItem[];
     'lazyload'?: boolean;
     'loop'?: boolean;
-    /**
-    * prop text
-    */
     'mode'?: string;
     'mouseDrag'?: boolean;
     'nested'?: boolean | string;

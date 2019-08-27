@@ -1,4 +1,4 @@
-import { Component, Prop, h } from "@stencil/core";
+import { Component, Prop, Element, h } from "@stencil/core";
 import { NovaSliderMarkup } from "./NovaSliderMarkup";
 import {
   ANIMATE_IN,
@@ -24,6 +24,7 @@ export class NovaSlider {
   /**
    * prop text
    */
+  @Element() el;
   @Prop() mode: string = MODE.CAROUSEL;
   @Prop() variant: string = VARIANT.CARDS;
   @Prop() axis: string = AXIS.HORIZONTAL;
@@ -70,16 +71,16 @@ export class NovaSlider {
       return slideCount - 1;
       // most cases
     } else {
-      var str = this.fixedWidth ? "fixedWidth" : "perView",
+      let str = this.fixedWidth ? "fixedWidth" : "perView",
         arr = [];
 
       if (this.fixedWidth || this[str] < slideCount) {
         arr.push(this[str]);
       }
-      
+
       if (this.responsive) {
-        for (var bp in this.responsive) {
-          var tem = this.responsive[bp][str];
+        for (let bp in this.responsive) {
+          let tem = this.responsive[bp][str];
           if (tem && (this.fixedWidth || tem < slideCount)) {
             arr.push(tem);
           }
@@ -101,7 +102,7 @@ export class NovaSlider {
   getCloneCountForLoop = () => {
     const slideCount = this.items.length;
     const isCarousel = this.mode === MODE.CAROUSEL.valueOf();
-    var itemsMax = this.getItemsMax(),
+    let itemsMax = this.getItemsMax(),
       result = isCarousel
         ? Math.ceil((itemsMax * 5 - slideCount) / 2)
         : itemsMax * 4 - slideCount;
