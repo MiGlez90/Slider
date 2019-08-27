@@ -69,15 +69,16 @@ export class NovaSlider {
   };
 
   render() {
-    const { mode, variant, axis, items } = this;
-    const SliderItemComponent = this.getSliderItemComponent(variant);
+    const SliderItemComponent = this.getSliderItemComponent(this.variant);
     return (
       <NovaSliderMarkup
-        mode={mode}
-        variant={variant}
-        axis={axis}
-        items={items}
+        mode={this.mode}
+        variant={this.variant}
+        axis={this.axis}
+        gutter={this.gutter}
+        items={this.items}
         SliderItemComponent={SliderItemComponent}
+        perView={this.perView}
       />
     );
   }
