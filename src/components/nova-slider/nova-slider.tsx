@@ -11,6 +11,9 @@ import {
 } from "./default-configuration";
 import { SliderItem } from "./models";
 import { SliderCardItem } from "./SliderCardItem";
+import { getSlideId } from "./helpers/getSlideId";
+import { percentageLayout } from "./helpers/percentageLayout";
+import { calc } from "./helpers/calc";
 
 @Component({
   tag: "nova-slider",
@@ -61,6 +64,52 @@ export class NovaSlider {
   @Prop() onInit: Function | boolean = false;
   @Prop() useLocalStorage: boolean = true;
 
+  getItemsMax = () => {
+    const slideCount = this.items.length;
+    if (this.autoWidth || (this.fixedWidth && !this.viewportMax)) {
+      return slideCount - 1;
+      // most cases
+    } else {
+      var str = this.fixedWidth ? "fixedWidth" : "perView",
+        arr = [];
+
+      if (this.fixedWidth || this[str] < slideCount) {
+        arr.push(this[str]);
+      }
+      
+      if (this.responsive) {
+        for (var bp in this.responsive) {
+          var tem = this.responsive[bp][str];
+          if (tem && (this.fixedWidth || tem < slideCount)) {
+            arr.push(tem);
+          }
+        }
+      }
+
+      if (!arr.length) {
+        arr.push(0);
+      }
+
+      return Math.ceil(
+        this.fixedWidth
+          ? (this.viewportMax as number) / Math.min.apply(null, arr)
+          : Math.max.apply(null, arr)
+      );
+    }
+  };
+
+  getCloneCountForLoop = () => {
+    const slideCount = this.items.length;
+    const isCarousel = this.mode === MODE.CAROUSEL.valueOf();
+    var itemsMax = this.getItemsMax(),
+      result = isCarousel
+        ? Math.ceil((itemsMax * 5 - slideCount) / 2)
+        : itemsMax * 4 - slideCount;
+    result = Math.max(itemsMax, result);
+
+    return this["edgePadding"] ? result + 1 : result;
+  };
+
   getSliderItemComponent = variant => {
     switch (variant) {
       case VARIANT.CARDS.valueOf():
@@ -70,15 +119,26 @@ export class NovaSlider {
 
   render() {
     const SliderItemComponent = this.getSliderItemComponent(this.variant);
+    const slideId = getSlideId();
+    const isPercentageLayoutSupported = percentageLayout();
+    const calcPrefixCSS: string | boolean = calc();
+    const cloneCount: number = this.loop ? this.getCloneCountForLoop() : 0;
     return (
       <NovaSliderMarkup
+        autoWidth={this.autoWidth}
+        autoHeight={this.autoHeight}
+        animateNormal={this.animateNormal}
+        axis={this.axis}
+        cloneCount={cloneCount}
         mode={this.mode}
         variant={this.variant}
-        axis={this.axis}
         gutter={this.gutter}
         items={this.items}
         SliderItemComponent={SliderItemComponent}
         perView={this.perView}
+        slideId={slideId}
+        isPercentageLayoutSupported={isPercentageLayoutSupported}
+        calcPrefixCSS={calcPrefixCSS}
       />
     );
   }
