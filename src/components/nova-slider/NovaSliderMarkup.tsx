@@ -17,13 +17,15 @@ interface NovaSliderMarkupProps {
   autoHeight: boolean;
   isPercentageLayoutSupported: boolean;
   calcPrefixCSS: string | boolean;
+  containerStyle: any;
 }
 
 export const NovaSliderMarkup: SFC<NovaSliderMarkupProps> = props => {
   const { items, SliderItemComponent, gutter, slideId } = props;
   const { autoWidth, isPercentageLayoutSupported, calcPrefixCSS } = props;
   const { autoHeight, axis, mode } = props;
-  const { animateNormal, cloneCount } = props;
+  const { animateNormal, cloneCount, containerStyle } = props;
+  const isCarousel = mode === MODE.CAROUSEL.valueOf();
 
   const slideCount = items.length;
 
@@ -45,7 +47,6 @@ export const NovaSliderMarkup: SFC<NovaSliderMarkupProps> = props => {
   itemsContainerClass += ` tns-${axis}`;
 
   let autoHeightClass = autoHeight ? " tns-ah" : "";
-  const isCarousel = mode === MODE.CAROUSEL.valueOf();
   const animateNormalClass = !isCarousel && animateNormal ? animateNormal : "";
 
   let clonedItemsBefore = [];
@@ -63,7 +64,7 @@ export const NovaSliderMarkup: SFC<NovaSliderMarkupProps> = props => {
   }
 
   const InnerMarkup = (
-    <ul class={itemsContainerClass} id={slideId}>
+    <ul style={containerStyle} class={itemsContainerClass} id={slideId}>
       {clonedItemsBefore.map((item: SliderItem) => (
         <li
           aria-hidden="true"
@@ -114,7 +115,7 @@ export const NovaSliderMarkup: SFC<NovaSliderMarkupProps> = props => {
   if (isCarousel) {
     return (
       <div class="nova-slider tns-outer" id={outerId}>
-        <div class={`tns-mvh ${autoHeightClass}`} id={middleId}>
+        <div class={`tns-ovh ${autoHeightClass}`} id={middleId}>
           <div class="tns-inner" id={innerId}>
             {InnerMarkup}
           </div>

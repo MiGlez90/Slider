@@ -1,11 +1,11 @@
-import { getBody } from './getBody.js';
-import { setFakeBody } from './setFakeBody.js';
-import { resetFakeBody } from './resetFakeBody.js';
+import { getBody } from './getBody';
+import { setFakeBody } from './setFakeBody';
+import { resetFakeBody } from './resetFakeBody';
 
 export function has3DTransforms(tf){
   if (!tf) { return false; }
   if (!window.getComputedStyle) { return false; }
-  
+
   var doc = document,
       body = getBody(),
       docOverflow = setFakeBody(body),
