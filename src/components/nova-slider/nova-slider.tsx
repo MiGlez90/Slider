@@ -11,10 +11,16 @@ import {
 } from "./default-configuration";
 import { SliderItem } from "./models";
 import { SliderCardItem } from "./SliderCardItem";
+import { addEvents } from "./helpers/addEvents";
+import { addClass } from "./helpers/addClass";
 import { getSlideId } from "./helpers/getSlideId";
 import { percentageLayout } from "./helpers/percentageLayout";
 import { calc } from "./helpers/calc";
-import {has3DTransforms} from "./helpers/has3DTransforms";
+import { has3DTransforms } from "./helpers/has3DTransforms";
+import { removeClass } from "./helpers/removeClass";
+import { removeEvents } from "./helpers/removeEvents";
+import { raf } from "./helpers/raf";
+import { hasClass } from "./helpers/hasClass";
 
 @Component({
   tag: "nova-slider",
@@ -73,6 +79,41 @@ export class NovaSlider {
   private cloneCount: number;
   private slideCountNew: number;
   private index: number;
+  private imgEvents: any;
+  private imgsComplete: boolean;
+  private imgCompleteClass: string = "tns-complete";
+  private rightBoundary;
+  private freeze;
+  private viewport;
+  private indexMax: number;
+
+  getTarget = e => {
+    return e.target || window.event.srcElement;
+  };
+
+  onImgLoaded = e => {
+    this.imgLoaded(this.getTarget(e));
+  };
+
+  onImgFailed = e => {
+    this.imgFailed(this.getTarget(e));
+  };
+
+  imgLoaded = img => {
+    addClass(img, "loaded");
+    this.imgCompleted(img);
+  };
+
+  imgFailed = img => {
+    addClass(img, "failed");
+    this.imgCompleted(img);
+  };
+
+  imgCompleted = img => {
+    addClass(img, "tns-complete");
+    removeClass(img, "loading");
+    removeEvents(img, this.imgEvents);
+  };
 
   getItemsMax = () => {
     if (this.autoWidth || (this.fixedWidth && !this.viewportMax)) {
@@ -128,7 +169,10 @@ export class NovaSlider {
     ind = ind
       ? Math.max(
           0,
-          Math.min(this.loop ? this.slideCount - 1 : this.slideCount - this.perView, ind)
+          Math.min(
+            this.loop ? this.slideCount - 1 : this.slideCount - this.perView,
+            ind
+          )
         )
       : 0;
     return this.mode === MODE.CAROUSEL.valueOf() ? ind + this.cloneCount : ind;
@@ -143,6 +187,7 @@ export class NovaSlider {
   };
 
   getClientWidth = el => {
+    if (!el) return;
     let div = document.createElement("div"),
       rect,
       width;
@@ -150,12 +195,13 @@ export class NovaSlider {
     rect = div.getBoundingClientRect();
     width = rect.right - rect.left;
     div.remove();
+    debugger;
     return width || this.getClientWidth(el.parentNode);
   };
 
   getViewportWidth = () => {
     const root = this.el.shadowRoot || this.el;
-    const container = root.querySelector("tns-inner");
+    const container = root.querySelector(".tns-inner");
     let gap = this.edgePadding ? this.edgePadding * 2 - this.gutter : 0;
     return this.getClientWidth(container) - gap;
   };
@@ -165,7 +211,7 @@ export class NovaSlider {
       ww = this.getWindowWidth();
     }
 
-    if (item === "items" && this.fixedWidth) {
+    if (item === "perView" && this.fixedWidth) {
       return (
         Math.floor(
           (this.getViewportWidth() + this.gutter) /
@@ -187,11 +233,11 @@ export class NovaSlider {
       }
 
       if (item === "slideBy" && result === "page") {
-        result = this.getOption("items");
+        result = this.getOption("perView");
       }
       if (
         this.mode !== MODE.CAROUSEL.valueOf() &&
-        (item === "slideBy" || item === "items")
+        (item === "slideBy" || item === "perView")
       ) {
         result = Math.floor(result);
       }
@@ -234,7 +280,8 @@ export class NovaSlider {
 
     if (this.center && !this.loop) {
       result = this.fixedWidth
-        ? -((this.fixedWidth as number) + this.gutter) * (this.slideCountNew - 1) -
+        ? -((this.fixedWidth as number) + this.gutter) *
+            (this.slideCountNew - 1) -
           this.getCenterGap()
         : this.getCenterGap(this.slideCountNew - 1) -
           this.slidePositions[this.slideCountNew - 1];
@@ -278,34 +325,281 @@ export class NovaSlider {
       val = Math.max(val, rightBoundary);
     }
 
-    val += this.isHorizontal && !this.autoWidth && !this.fixedWidth ? "%" : "px";
+    val +=
+      this.isHorizontal && !this.autoWidth && !this.fixedWidth ? "%" : "px";
 
     return val;
   };
 
   getContainerStyle = () => {
-    const transform = this.transformPrefix + this.getContainerTransformValue() + this.transformPostfix;
+    const transform =
+      this.transformPrefix +
+      this.getContainerTransformValue() +
+      this.transformPostfix;
     return {
       transitionDuration: this.transitionDuration,
-      [this.transformAttr] : transform
-    }
+      [this.transformAttr]: transform
+    };
   };
 
   updateTransformVariables = () => {
-    this.transformAttr = this.mode === AXIS.HORIZONTAL.valueOf() ? "left": "top";
+    this.transformAttr =
+      this.mode === AXIS.HORIZONTAL.valueOf() ? "left" : "top";
     this.transformAttr = "transform";
-    this.transformPrefix = 'translate';
+    this.transformPrefix = "translate";
 
     const HAS3DTRANSFORMS = has3DTransforms("transform");
 
     if (HAS3DTRANSFORMS) {
-      this.transformPrefix += this.isHorizontal ? '3d(' : '3d(0px, ';
-      this.transformPostfix = this.isHorizontal ? ', 0px, 0px)' : ', 0px)';
+      this.transformPrefix += this.isHorizontal ? "3d(" : "3d(0px, ";
+      this.transformPostfix = this.isHorizontal ? ", 0px, 0px)" : ", 0px)";
     } else {
-      this.transformPrefix += this.isHorizontal ? 'X(' : 'Y(';
-      this.transformPostfix = ')';
+      this.transformPrefix += this.isHorizontal ? "X(" : "Y(";
+      this.transformPostfix = ")";
     }
   };
+
+  hasOption = item => {
+    if (this[item]) {
+      return true;
+    } else {
+      if (this.responsive) {
+        for (var bp in this.responsive) {
+          if (this.responsive[bp][item]) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+  };
+
+  imgsLoadedCheck = (imgs, cb) => {
+    // directly execute callback function if all images are complete
+    if (this.imgsComplete) {
+      return cb();
+    }
+
+    // check selected image classes otherwise
+    imgs.forEach((img, index) => {
+      if (hasClass(img, this.imgCompleteClass)) {
+        imgs.splice(index, 1);
+      }
+    });
+
+    // execute callback function if selected images are all complete
+    if (!imgs.length) {
+      return cb();
+    }
+
+    // otherwise execute this function again
+    raf(() => {
+      this.imgsLoadedCheck(imgs, cb);
+    });
+  };
+
+  getImageArray = (start, end) => {
+    let imgs = [];
+    const root = this.el.shadowRoot || this.el;
+    const slideItems = root.querySelectorAll(".tns-item");
+    while (start <= end) {
+      slideItems[start].querySelectorAll("img").forEach(img => imgs.push(img));
+      start++;
+    }
+
+    return imgs;
+  };
+
+  initSliderTransformStyleCheck = () => {
+    const root = this.el.shadowRoot || this.el;
+    const slideItems = root.querySelectorAll(".tns-item");
+    if (this.autoWidth) {
+      // check styles application
+      const num = this.loop ? this.index : this.slideCount - 1;
+      const _this = this;
+      (function stylesApplicationCheck() {
+        slideItems[num - 1].getBoundingClientRect().right.toFixed(2) ===
+        slideItems[num].getBoundingClientRect().left.toFixed(2)
+          ? _this.initSliderTransformCore()
+          : setTimeout(function() {
+              stylesApplicationCheck();
+            }, 16);
+      })();
+    } else {
+      this.initSliderTransformCore();
+    }
+  };
+
+  setSlidePositions = () => {
+    const root = this.el.shadowRoot || this.el;
+    const slideItems = root.querySelectorAll(".tns-item");
+    this.slidePositions = [0];
+    var attr = this.isHorizontal ? "left" : "top",
+      attr2 = this.isHorizontal ? "right" : "bottom",
+      base = slideItems[0].getBoundingClientRect()[attr];
+
+    slideItems.forEach((item, i) => {
+      // skip the first slide
+      if (i) {
+        this.slidePositions.push(item.getBoundingClientRect()[attr] - base);
+      }
+      // add the end edge
+      if (i === this.slideCountNew - 1) {
+        this.slidePositions.push(item.getBoundingClientRect()[attr2] - base);
+      }
+    });
+  };
+
+  getFreeze() {
+    if (!this.fixedWidth && !this.autoWidth) {
+      var a = this.center
+        ? this.perView - (this.perView - 1) / 2
+        : this.perView;
+      return this.slideCount <= a;
+    }
+
+    var width = this.fixedWidth
+        ? ((this.fixedWidth as number) + this.gutter) * this.slideCount
+        : this.slidePositions[this.slideCount],
+      vp = this.edgePadding
+        ? this.viewport + this.edgePadding * 2
+        : this.viewport + this.gutter;
+
+    if (this.center) {
+      vp -= this.fixedWidth
+        ? (this.viewport - (this.fixedWidth as number)) / 2
+        : (this.viewport -
+            (this.slidePositions[this.index + 1] -
+              this.slidePositions[this.index] -
+              this.gutter)) /
+          2;
+    }
+
+    return width <= vp;
+  }
+
+  resetVariblesWhenDisable = condition => {
+    if (condition) {
+      this.touch = this.mouseDrag = this.arrowKeys = this.autoplay = this.autoplayHoverPause = this.autoplayResetOnVisibility = false;
+    }
+  };
+
+  updateContentWrapperHeight() {
+    const root = this.el.shadowRoot || this.el;
+    const middleWrapper = root.querySelector(".tns-ovh");
+    const innerWrapper = root.querySelector(".tns-inner");
+    var wp = middleWrapper ? middleWrapper : innerWrapper;
+    wp.style.height =
+      this.slidePositions[this.index + this.perView] -
+      this.slidePositions[this.index] +
+      "px";
+  }
+
+  initSliderTransformCore = () => {
+    // run Fn()s which are rely on image loading
+    if (!this.isHorizontal || this.autoWidth) {
+      this.setSlidePositions();
+
+      if (this.autoWidth) {
+        this.rightBoundary = this.getRightBoundary();
+        if (this.freezable) {
+          this.freeze = this.getFreeze();
+        }
+        this.indexMax = this.getIndexMax(); // <= slidePositions, rightBoundary <=
+        this.resetVariblesWhenDisable(this.disabled || this.freeze);
+      } else {
+        this.updateContentWrapperHeight();
+      }
+    }
+    //
+    // initTools();
+    // initEvents();
+  };
+
+  initSliderTransform = () => {
+    // ## images loaded/failed
+    const root = this.el.shadowRoot || this.el;
+    const container = root.querySelector(".nova-slider__item");
+    if (this.hasOption("autoHeight") || this.autoWidth || !this.isHorizontal) {
+      var imgs = container.querySelectorAll("img");
+
+      // add complete class if all images are loaded/failed
+      imgs.forEach(img => {
+        var src = img.src;
+
+        if (src && src.indexOf("data:image") < 0) {
+          addEvents(img, this.imgEvents);
+          img.src = "";
+          img.src = src;
+          addClass(img, "loading");
+        } else if (!this.lazyload) {
+          this.imgLoaded(img);
+        }
+      });
+
+      // All imgs are completed
+      raf(() => {
+        this.imgsLoadedCheck(Array.from(imgs), () => {
+          this.imgsComplete = true;
+        });
+      });
+
+      // Check imgs in window only for auto height
+      if (!this.autoWidth && this.isHorizontal) {
+        imgs = this.getImageArray(
+          this.index,
+          Math.min(this.index + this.perView - 1, this.slideCountNew - 1)
+        );
+      }
+
+      this.lazyload
+        ? this.initSliderTransformStyleCheck()
+        : raf(() => {
+            this.imgsLoadedCheck(
+              Array.from(imgs),
+              this.initSliderTransformStyleCheck
+            );
+          });
+    } else {
+      // update slider tools and events
+      // initTools();
+      // initEvents();
+    }
+  };
+
+  getIndexMaxFunction = () => {
+    const _this = this;
+    if (_this.fixedWidth) {
+      return function() {
+        return _this.center && !_this.loop
+          ? _this.slideCount - 1
+          : Math.ceil(
+              -_this.rightBoundary /
+                ((_this.fixedWidth as number) + _this.gutter)
+            );
+      };
+    } else if (_this.autoWidth) {
+      return function() {
+        for (var i = _this.slideCountNew; i--; ) {
+          if (_this.slidePositions[i] >= -_this.rightBoundary) {
+            return i;
+          }
+        }
+      };
+    } else {
+      return function() {
+        if (_this.center && _this.isCarousel && !_this.loop) {
+          return _this.slideCount - 1;
+        } else {
+          return _this.loop || _this.isCarousel
+            ? Math.max(0, _this.slideCountNew - Math.ceil(_this.perView))
+            : _this.slideCountNew - 1;
+        }
+      };
+    }
+  };
+
+  getIndexMax = this.getIndexMaxFunction();
 
   updateLocalVariables = () => {
     this.isCarousel = this.mode === MODE.CAROUSEL.valueOf();
@@ -318,10 +612,18 @@ export class NovaSlider {
         ? this.slideCount + this.cloneCount
         : this.slideCount + this.cloneCount * 2;
     this.index = this.getIndex();
+    this.imgEvents = {
+      load: this.onImgLoaded,
+      error: this.onImgFailed
+    };
+    this.rightBoundary = this.fixedWidth ? this.getRightBoundary() : null;
+    this.freeze = this.freezable && !this.autoWidth ? this.getFreeze() : false;
+    this.viewport = this.getViewportWidth();
+    this.indexMax = !this.autoWidth ? this.getIndexMax() : null;
     this.updateTransformVariables();
   };
 
-  componentWillRender(){
+  componentWillRender() {
     this.updateLocalVariables();
   }
 
