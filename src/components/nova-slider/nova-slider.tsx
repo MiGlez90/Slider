@@ -1,4 +1,4 @@
-import { Component, Prop, Element, h } from "@stencil/core";
+import { Component, Prop, Element, h, State } from "@stencil/core";
 import { NovaSliderMarkup } from "./NovaSliderMarkup";
 import {
   ANIMATE_IN,
@@ -7,7 +7,8 @@ import {
   AUTOPLAY_DIRECTION,
   AXIS,
   MODE,
-  VARIANT
+  VARIANT,
+  SLIDE_BY
 } from "./default-configuration";
 import { SliderItem } from "./models";
 import { SliderCardItem } from "./SliderCardItem";
@@ -68,6 +69,7 @@ export class NovaSlider {
   @Prop() startIndex: number = 0;
   @Prop() onInit: Function | boolean = false;
   @Prop() useLocalStorage: boolean = true;
+  @State() index: number;
   private slidePositions: any[] = [];
   private transformAttr: string;
   private transformPrefix: string;
@@ -78,7 +80,6 @@ export class NovaSlider {
   private slideCount: number;
   private cloneCount: number;
   private slideCountNew: number;
-  private index: number;
   private imgEvents: any;
   private imgsComplete: boolean;
   private imgCompleteClass: string = "tns-complete";
@@ -86,6 +87,11 @@ export class NovaSlider {
   private freeze;
   private viewport;
   private indexMax: number;
+  private indexMin: number = 0;
+  private isRunning: boolean;
+  private controlsContainer: HTMLElement;
+  private prevButton: HTMLElement;
+  private nextButton: HTMLElement;
 
   getTarget = e => {
     return e.target || window.event.srcElement;
@@ -113,6 +119,15 @@ export class NovaSlider {
     addClass(img, "tns-complete");
     removeClass(img, "loading");
     removeEvents(img, this.imgEvents);
+  };
+
+  isTouchEvent = e => {
+    return e.type.indexOf("touch") >= 0;
+  };
+
+  getEvent = e => {
+    e = e || window.event;
+    return this.isTouchEvent(e) ? e.changedTouches[0] : e;
   };
 
   getItemsMax = () => {
@@ -195,7 +210,6 @@ export class NovaSlider {
     rect = div.getBoundingClientRect();
     width = rect.right - rect.left;
     div.remove();
-    debugger;
     return width || this.getClientWidth(el.parentNode);
   };
 
@@ -293,6 +307,135 @@ export class NovaSlider {
     return result;
   };
 
+  getAbsIndex = (i?) => {
+    if (i == null) {
+      i = this.index;
+    }
+
+    if (this.isCarousel) {
+      i -= this.cloneCount;
+    }
+    while (i < 0) {
+      i += this.slideCount;
+    }
+
+    return Math.floor(i % this.slideCount);
+  };
+
+  goTo(targetIndex, e) {
+    if (this.freeze) {
+      return;
+    }
+    debugger;
+
+    // prev slideBy
+    if (targetIndex === "prev") {
+      this.onControlsClick(e, -1);
+
+      // next slideBy
+    } else if (targetIndex === "next") {
+      this.onControlsClick(e, 1);
+
+      // go to exact slide
+    } else {
+      if (this.isRunning) {
+        //if (this.preventActionWhenRunning) { return; } else { this.onTransitionEnd(); }
+      }
+
+      var absIndex = this.getAbsIndex(),
+        indexGap = 0;
+
+      if (targetIndex === "first") {
+        indexGap = -absIndex;
+      } else if (targetIndex === "last") {
+        indexGap = this.isCarousel
+          ? this.slideCount - this.perView - absIndex
+          : this.slideCount - 1 - absIndex;
+      } else {
+        if (typeof targetIndex !== "number") {
+          targetIndex = parseInt(targetIndex);
+        }
+
+        if (!isNaN(targetIndex)) {
+          // from directly called goTo function
+          if (!e) {
+            targetIndex = Math.max(
+              0,
+              Math.min(this.slideCount - 1, targetIndex)
+            );
+          }
+
+          indexGap = targetIndex - absIndex;
+        }
+      }
+
+      // gallery: make sure new page won't overlap with current page
+      if (!this.isCarousel && indexGap && Math.abs(indexGap) < this.perView) {
+        var factor = indexGap > 0 ? 1 : -1;
+        indexGap +=
+          this.index + indexGap - this.slideCount >= this.indexMin
+            ? this.slideCount * factor
+            : this.slideCount * 2 * factor * -1;
+      }
+
+      this.index += indexGap;
+
+      // make sure index is in range
+      if (this.isCarousel && this.loop) {
+        if (this.index < this.indexMin) {
+          this.index += this.slideCount;
+        }
+        if (this.index > this.indexMax) {
+          this.index -= this.slideCount;
+        }
+      }
+    }
+  }
+
+  onControlsClick = (e, dir) => {
+    if (this.isRunning) {
+      if (this.preventActionWhenRunning) {
+        return;
+      } else {
+        //onTransitionEnd();
+      }
+    }
+
+    if (!dir) {
+      e = this.getEvent(e);
+      let target = this.getTarget(e);
+
+      while (
+        target !== this.controlsContainer &&
+        [this.prevButton, this.nextButton].indexOf(target) < 0
+      ) {
+        target = target.parentNode;
+      }
+
+      let targetIn = [this.prevButton, this.nextButton].indexOf(target);
+      if (targetIn >= 0) {
+        dir = targetIn === 0 ? -1 : 1;
+      }
+    }
+
+    if (this.rewind) {
+      if (this.index === this.indexMin && dir === -1) {
+        this.goTo("last", e);
+        return;
+      } else if (this.index === this.indexMax && dir === 1) {
+        this.goTo("first", e);
+        return;
+      }
+    }
+
+    if (dir) {
+      this.index += (this.slideBy as number) * dir;
+      if (this.autoWidth) {
+        this.index = Math.floor(this.index);
+      }
+    }
+  };
+
   getContainerTransformValue = (num?) => {
     const hasRightDeadZone = (this.fixedWidth || this.autoWidth) && !this.loop;
     const rightBoundary = this.fixedWidth ? this.getRightBoundary() : null;
@@ -331,14 +474,26 @@ export class NovaSlider {
     return val;
   };
 
+  getContainerWidth = () => {
+    if (this.fixedWidth) {
+      return (
+        ((this.fixedWidth as number) + this.gutter) * this.slideCountNew + "px"
+      );
+    } else {
+      return "calc(" + this.slideCountNew * 100 + "% / " + this.perView + ")";
+    }
+  };
+
   getContainerStyle = () => {
     const transform =
       this.transformPrefix +
       this.getContainerTransformValue() +
       this.transformPostfix;
+    const width = this.getContainerWidth();
     return {
       transitionDuration: this.transitionDuration,
-      [this.transformAttr]: transform
+      [this.transformAttr]: transform,
+      width
     };
   };
 
@@ -601,6 +756,25 @@ export class NovaSlider {
 
   getIndexMax = this.getIndexMaxFunction();
 
+  getHTMLELement = (selector: string): HTMLElement => {
+    const root: HTMLElement = this.el.shadowRoot || this.el;
+    return root.querySelector(selector);
+  };
+
+  updateArrowControls = () => {
+    const controlsEvents = {
+      click: this.onControlsClick
+      //'keydown': onControlsKeydown
+    };
+    this.controlsContainer = this.getHTMLELement(".nova-c-carousel__arrows");
+    this.prevButton = this.getHTMLELement(".nova-c-carousel__arrow--left");
+    this.nextButton = this.getHTMLELement(".nova-c-carousel__arrow--right");
+    if (this.prevButton && this.nextButton) {
+      addEvents(this.prevButton, controlsEvents);
+      addEvents(this.nextButton, controlsEvents);
+    }
+  };
+
   updateLocalVariables = () => {
     this.isCarousel = this.mode === MODE.CAROUSEL.valueOf();
     this.isHorizontal = this.axis === AXIS.HORIZONTAL.valueOf();
@@ -611,7 +785,6 @@ export class NovaSlider {
       this.mode !== MODE.CAROUSEL.valueOf()
         ? this.slideCount + this.cloneCount
         : this.slideCount + this.cloneCount * 2;
-    this.index = this.getIndex();
     this.imgEvents = {
       load: this.onImgLoaded,
       error: this.onImgFailed
@@ -620,8 +793,40 @@ export class NovaSlider {
     this.freeze = this.freezable && !this.autoWidth ? this.getFreeze() : false;
     this.viewport = this.getViewportWidth();
     this.indexMax = !this.autoWidth ? this.getIndexMax() : null;
+    this.slideBy =
+      this.slideBy === SLIDE_BY.PAGE.valueOf() ? this.perView : this.slideBy;
     this.updateTransformVariables();
   };
+
+  getSlideWidthStyle = () => {
+    var width;
+
+    if (this.fixedWidth) {
+      width = (this.fixedWidth as number) + this.gutter + "px";
+    } else {
+      if (!this.isCarousel) {
+        this.perView = Math.floor(this.perView);
+      }
+      let dividend = this.isCarousel ? this.slideCountNew : this.perView;
+      width = "calc(100% / " + dividend + ")";
+    }
+
+    return this.nested !== "inner" ? width : width + " !important";
+  };
+
+  getSlideItemStyle = () => {
+    const width = this.getSlideWidthStyle();
+    console.log(width);
+    return {
+      width,
+      paddingRight: `${this.gutter}px`
+    };
+  };
+
+  componentWillLoad() {
+    this.updateLocalVariables();
+    this.index = this.getIndex();
+  }
 
   componentWillRender() {
     this.updateLocalVariables();
@@ -633,6 +838,7 @@ export class NovaSlider {
     const isPercentageLayoutSupported = percentageLayout();
     const calcPrefixCSS: string | boolean = calc();
     const containerStyle = this.getContainerStyle();
+    const itemStyle = this.getSlideItemStyle();
     return (
       <NovaSliderMarkup
         autoWidth={this.autoWidth}
@@ -650,7 +856,12 @@ export class NovaSlider {
         isPercentageLayoutSupported={isPercentageLayoutSupported}
         calcPrefixCSS={calcPrefixCSS}
         containerStyle={containerStyle}
+        itemStyle={itemStyle}
       />
     );
+  }
+
+  componentDidRender() {
+    this.updateArrowControls();
   }
 }

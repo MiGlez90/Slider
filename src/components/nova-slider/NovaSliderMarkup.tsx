@@ -18,20 +18,18 @@ interface NovaSliderMarkupProps {
   isPercentageLayoutSupported: boolean;
   calcPrefixCSS: string | boolean;
   containerStyle: any;
+  itemStyle: any;
 }
 
 export const NovaSliderMarkup: SFC<NovaSliderMarkupProps> = props => {
-  const { items, SliderItemComponent, gutter, slideId } = props;
+  const { items, SliderItemComponent, slideId } = props;
   const { autoWidth, isPercentageLayoutSupported, calcPrefixCSS } = props;
   const { autoHeight, axis, mode } = props;
   const { animateNormal, cloneCount, containerStyle } = props;
+  const { itemStyle } = props;
   const isCarousel = mode === MODE.CAROUSEL.valueOf();
 
   const slideCount = items.length;
-
-  const itemStyle = {
-    paddingRight: `${gutter}px`
-  };
 
   const outerId = `${slideId}-ow`;
   const middleId = `${slideId}-mw`;
@@ -64,29 +62,14 @@ export const NovaSliderMarkup: SFC<NovaSliderMarkupProps> = props => {
   }
 
   const InnerMarkup = (
-    <ul style={containerStyle} class={itemsContainerClass} id={slideId}>
-      {clonedItemsBefore.map((item: SliderItem) => (
-        <li
-          aria-hidden="true"
-          tabindex={-1}
-          style={itemStyle}
-          class={`nova-slider__item tns-item ${animateNormalClass}`}
-        >
-          <SliderItemComponent
-            link={item.link}
-            title={item.title}
-            summary={item.summary}
-          />
-        </li>
-      ))}
-      {items &&
-        items.map((item: SliderItem, index: number) => (
+    <div>
+      <ul style={containerStyle} class={itemsContainerClass} id={slideId}>
+        {clonedItemsBefore.map((item: SliderItem) => (
           <li
             aria-hidden="true"
-            tabIndex={-1}
+            tabindex={-1}
             style={itemStyle}
             class={`nova-slider__item tns-item ${animateNormalClass}`}
-            id={`${slideId}-item${index}`}
           >
             <SliderItemComponent
               link={item.link}
@@ -95,21 +78,46 @@ export const NovaSliderMarkup: SFC<NovaSliderMarkupProps> = props => {
             />
           </li>
         ))}
-      {clonedItemsAfter.map((item: SliderItem) => (
-        <li
-          aria-hidden="true"
-          tabindex={-1}
-          style={itemStyle}
-          class={`nova-slider__item tns-item ${animateNormalClass}`}
-        >
-          <SliderItemComponent
-            link={item.link}
-            title={item.title}
-            summary={item.summary}
-          />
-        </li>
-      ))}
-    </ul>
+        {items &&
+          items.map((item: SliderItem, index: number) => (
+            <li
+              aria-hidden="true"
+              tabIndex={-1}
+              style={itemStyle}
+              class={`nova-slider__item tns-item ${animateNormalClass}`}
+              id={`${slideId}-item${index}`}
+            >
+              <SliderItemComponent
+                link={item.link}
+                title={item.title}
+                summary={item.summary}
+              />
+            </li>
+          ))}
+        {clonedItemsAfter.reverse().map((item: SliderItem) => (
+          <li
+            aria-hidden="true"
+            tabindex={-1}
+            style={itemStyle}
+            class={`nova-slider__item tns-item ${animateNormalClass}`}
+          >
+            <SliderItemComponent
+              link={item.link}
+              title={item.title}
+              summary={item.summary}
+            />
+          </li>
+        ))}
+      </ul>
+      <div class="nova-c-carousel__arrows nova-js-carousel__arrows">
+        <button class="nova-c-carousel__arrow nova-c-carousel__arrow--left">
+          <nova-font-awesome iconName="chevron-left" size="2x" />
+        </button>
+        <button class="nova-c-carousel__arrow nova-c-carousel__arrow--right">
+          <nova-font-awesome iconName="chevron-right" size="2x" />
+        </button>
+      </div>
+    </div>
   );
 
   if (isCarousel) {

@@ -17,6 +17,10 @@ enum AUTOPLAY_DIRECTION {
   BACKWARD = "backward"
 }
 
+enum SLIDE_BY {
+  PAGE = "page"
+}
+
 enum PREVENT_SCROLL_ON_TOUCH {
   AUTO = "auto",
   FORCE = "force"
@@ -40,6 +44,7 @@ export {
   PREVENT_SCROLL_ON_TOUCH,
   NESTED,
   MODE,
-  VARIANT
+  VARIANT,
+  SLIDE_BY
 }
 
